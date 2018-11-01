@@ -1,2 +1,2 @@
 six
-pyparsing
+pyparsing==2.1.3

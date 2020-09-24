@@ -39,7 +39,9 @@ from pyszn.parser import parse_txtmeta, find_topology_in_python
 log = getLogger(__name__)
 
 
-def parse_attribute_injection(injection_file, search_paths=None):
+def parse_attribute_injection(
+    injection_file, search_paths=None, ignored_paths=None
+):
     """
     Parses a attributes injection file into an attribute injection dictionary.
 
@@ -80,6 +82,8 @@ def parse_attribute_injection(injection_file, search_paths=None):
     :param list search_paths: Paths to search for files when the file match is
      relative in the injection file.
      If ``None`` (the default), the current working directory is used.
+    :param list ignored_paths: Lists of path pattern to ignore of the search
+     paths. Uses fnmatch to filter them out.
     :return: An ordered dictionary with the attributes to inject of the form:
 
      ::
@@ -104,10 +108,13 @@ def parse_attribute_injection(injection_file, search_paths=None):
         search_paths = [abspath(getcwd())]
     log.debug('Injection search paths: {}'.format(search_paths))
 
+    ignored_paths = ignored_paths or []
+    log.debug('Injection will ignore: {}'.format(ignored_paths))
+
     # Expand search paths recursively to include all subfolders
     paths_to_expand = list(search_paths)
     for root in paths_to_expand:
-        children = _subfolders(root)
+        children = _subfolders(root, ignored_paths)
         search_paths.extend(children)
 
     # Make search paths unique
@@ -187,11 +194,18 @@ def parse_attribute_injection(injection_file, search_paths=None):
     return result
 
 
-def _subfolders(search_path):
+def _subfolders(search_path, ignored_paths):
     result = []
     for root, dirs, files in walk(search_path, topdown=True, followlinks=True):
-        # Ignore hidden folders
-        dirs[:] = [d for d in dirs if not d.startswith('.')]
+        dirs[:] = [
+            d for d in dirs
+            if (
+                # Ignore hidden folders
+                not d.startswith('.') and
+                # Ignore folders matching any ignored path pattern
+                not any(fnmatch(d, pattern) for pattern in ignored_paths)
+            )
+        ]
         result.extend([join(root, directory) for directory in dirs])
     return result
 

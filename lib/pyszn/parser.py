@@ -52,8 +52,10 @@ way, a link between endpoints MAY have attributes. An endpoint is a combination
 of a node and a port name.
 """
 
-from copy import deepcopy
 import logging
+from glob import glob
+from pathlib import Path
+from copy import deepcopy
 from traceback import format_exc
 from collections import OrderedDict
 
@@ -291,7 +293,7 @@ def parse_txtmeta(txtmeta):
     return data
 
 
-def find_topology_in_python(filename):
+def find_topology_in_python(filename, szn_dir=None):
     """
     Find the TOPOLOGY variable inside a Python file.
 
@@ -299,6 +301,7 @@ def find_topology_in_python(filename):
     the Python code isn't executed.
 
     :param str filename: Path to file to search for TOPOLOGY.
+    :param str szn_dir: Path to directory where topologies string are defined.
 
     :return: The value of the TOPOLOGY variable if found, None otherwise.
     :rtype: str or None
@@ -314,6 +317,15 @@ def find_topology_in_python(filename):
                 continue
             if node.targets[0].id == 'TOPOLOGY':
                 return node.value.s
+            elif node.targets[0].id == 'TOPOLOGY_ID':
+                if not szn_dir:
+                    raise RuntimeError('Found a TOPOLOGY_ID, but no SZN search path was defined')
+                topology_id = node.value.s
+                for search_path in szn_dir:
+                    for filename in glob(str(Path(search_path)/'{}.szn'.format(topology_id))):
+                        return Path(filename).read_text(encoding='utf-8')
+                raise FileNotFoundError('Topology file with ID {} could not be found'.format(topology_id))
+
 
     except Exception:
         log.error(format_exc())

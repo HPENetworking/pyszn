@@ -40,7 +40,7 @@ log = getLogger(__name__)
 
 
 def parse_attribute_injection(
-    injection_file, search_paths=None, ignored_paths=None
+    injection_file, search_paths=None, ignored_paths=None, szn_dir=None
 ):
     """
     Parses a attributes injection file into an attribute injection dictionary.
@@ -84,6 +84,8 @@ def parse_attribute_injection(
      If ``None`` (the default), the current working directory is used.
     :param list ignored_paths: Lists of path pattern to ignore of the search
      paths. Uses fnmatch to filter them out.
+    :param list szn_dir: List of paths to directories where *.szn files 
+     are located.
     :return: An ordered dictionary with the attributes to inject of the form:
 
      ::
@@ -155,7 +157,7 @@ def parse_attribute_injection(
 
                 # Nodes
                 if 'nodes' in modifier:
-                    for node in _expand_nodes(filename, modifier['nodes']):
+                    for node in _expand_nodes(filename, modifier['nodes'], szn_dir):
                         if node not in result[filename]['nodes']:
                             result[filename]['nodes'][node] = {}
 
@@ -167,7 +169,7 @@ def parse_attribute_injection(
                 # Ports
                 if 'ports' in modifier:
                     for port in _expand_ports(
-                            filename, _port_str_to_tuple(modifier['ports'])):
+                            filename, _port_str_to_tuple(modifier['ports']), szn_dir):
                         if port not in result[filename]['ports']:
                             result[filename]['ports'][port] = {}
 
@@ -179,7 +181,7 @@ def parse_attribute_injection(
                 # Links
                 if 'links' in modifier:
                     for link in _expand_links(
-                            filename, _link_str_to_tuple(modifier['links'])):
+                            filename, _link_str_to_tuple(modifier['links']), szn_dir):
                         if link not in result[filename]['links']:
                             result[filename]['links'][link] = {}
 
@@ -287,7 +289,7 @@ def _expand_files(files_definitions, search_paths):
     return expanded_files
 
 
-def _expand_nodes(filename, nodes_definitions):
+def _expand_nodes(filename, nodes_definitions, szn_dir):
     """
     Expands a list of node definitions into the matching node names.
 
@@ -303,6 +305,8 @@ def _expand_nodes(filename, nodes_definitions):
 
     :param str filename: A filename in which to look for matching nodes.
     :param list nodes_definitions: A list of node definitions.
+    :param list szn_dir: List of paths to directories where *.szn files 
+     are located.
     :return: A list of matching nodes.
     """
 
@@ -311,11 +315,11 @@ def _expand_nodes(filename, nodes_definitions):
     # Grab the topology definition from a file that contains one
     log.debug('Trying to expand nodes in {}'.format(filename))
     if filename.endswith('.py'):
-        topology = find_topology_in_python(filename)
+        topology = find_topology_in_python(filename, szn_dir=szn_dir)
         if topology is None:
             log.warning(
                 ('Skipping node expansion for attribute injection in filename '
-                 '{} in the lookup path as it does not contain a TOPOLOGY '
+                 '{} in the lookup path as it does not contain a TOPOLOGY or TOPOLOGY_ID '
                  'definition.').format(filename))
             return []
     else:
@@ -384,7 +388,7 @@ def _match_by_attr(regex, parsed_topology, kind):
     return matched_objects
 
 
-def _expand_ports(filename, ports_definitions):
+def _expand_ports(filename, ports_definitions, szn_dir):
     """
     Expands a list of port definitions into the matching port names.
 
@@ -400,6 +404,8 @@ def _expand_ports(filename, ports_definitions):
 
     :param str filename: A filename in which to look for matching ports.
     :param list ports_definitions: A list of port definitions.
+    :param list szn_dir: List of paths to directories where *.szn files 
+     are located.
     :return: A list of matching ports.
     """
     expanded_ports = []
@@ -407,11 +413,11 @@ def _expand_ports(filename, ports_definitions):
     # Grab the topology definition from a file that contains one
     log.debug('Trying to expand ports in {}'.format(filename))
     if filename.endswith('.py'):
-        topology = find_topology_in_python(filename)
+        topology = find_topology_in_python(filename, szn_dir=szn_dir)
         if topology is None:
             log.warning(
                 ('Skipping port expansion for attribute injection in filename '
-                 '{} in the lookup path as it does not contain a TOPOLOGY '
+                 '{} in the lookup path as it does not contain a TOPOLOGY or TOPOLOGY_ID '
                  'definition.').format(filename))
             return []
     else:
@@ -449,7 +455,7 @@ def _expand_ports(filename, ports_definitions):
     return expanded_ports
 
 
-def _expand_links(filename, links_definitions):
+def _expand_links(filename, links_definitions, szn_dir):
     """
     Expands a list of links definitions into the matching link names.
 
@@ -465,6 +471,8 @@ def _expand_links(filename, links_definitions):
 
     :param str filename: A filename in which to look for matching links.
     :param list link_definitions: A list of link definitions.
+    :param list szn_dir: List of paths to directories where *.szn files 
+     are located.
     :return: A list of matching links.
     """
 
@@ -473,11 +481,11 @@ def _expand_links(filename, links_definitions):
     # Grab the topology definition from a file that contains one
     log.debug('Trying to expand links in {}'.format(filename))
     if filename.endswith('.py'):
-        topology = find_topology_in_python(filename)
+        topology = find_topology_in_python(filename, szn_dir=szn_dir)
         if topology is None:
             log.warning(
                 ('Skipping link expansion for attribute injection in filename '
-                 '{} in the lookup path as it does not contain a TOPOLOGY '
+                 '{} in the lookup path as it does not contain a TOPOLOGY or TOPOLOGY_ID '
                  'definition.').format(filename))
             return []
     else:

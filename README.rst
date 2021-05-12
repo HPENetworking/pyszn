@@ -14,6 +14,13 @@ Documentation
 Changelog
 =========
 
+1.4.0 (2021-05-21)
+------------------
+
+New
+~~~
+
+- Support parse topology from a 'TOPOLOGY_ID' [Jose Martinez]
 1.2.0 (2019-06-11)
 ------------------
 

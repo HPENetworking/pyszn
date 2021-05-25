@@ -21,6 +21,15 @@ New
 ~~~
 
 - Support parse topology from a 'TOPOLOGY_ID' [Jose Martinez]
+
+1.3.0 (2020-10-05)
+------------------
+
+New
+~~~
+
+- Allow user to skip paths using fnmatch [David Diaz]
+
 1.2.0 (2019-06-11)
 ------------------
 

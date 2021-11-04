@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2015-2018 Hewlett Packard Enterprise Development LP
+# Copyright (C) 2015-2021 Hewlett Packard Enterprise Development LP
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -84,7 +84,7 @@ def parse_attribute_injection(
      If ``None`` (the default), the current working directory is used.
     :param list ignored_paths: Lists of path pattern to ignore of the search
      paths. Uses fnmatch to filter them out.
-    :param list szn_dir: List of paths to directories where *.szn files 
+    :param list szn_dir: List of paths to directories where *.szn files
      are located.
     :return: An ordered dictionary with the attributes to inject of the form:
 
@@ -131,6 +131,10 @@ def parse_attribute_injection(
     with open(injection_file) as fd:
         injection_spec = loads(fd.read())
 
+    # Cache the parsed topologies to not parse them again and again
+    # Key is a topology string and return is a dictionary of the parsed topology
+    parsed_topologies_cache = {}
+
     result = OrderedDict()
 
     # Iterate all specifications, expand files and fill return dictionary
@@ -150,6 +154,24 @@ def parse_attribute_injection(
                     result[filename]['environment'][attribute] = value
             except KeyError:
                 pass
+
+            topology = _load_topo(filename, szn_dir)
+
+            # Check if topology exists in cache, otherwise parse it and save it
+            if topology in parsed_topologies_cache:
+                parsed_topology = parsed_topologies_cache[topology]
+            else:
+                try:
+                    parsed_topology = parse_txtmeta(topology)
+                    parsed_topologies_cache[topology] = parsed_topology
+                except Exception:
+                    log.error(
+                        ('Skipping node expansion for attribute injection in filename '
+                        '{} in the lookup path as SZN format parsing failed.'
+                        ).format(filename))
+                    log.debug(format_exc())
+                    break
+
             # Each specification have several "modifiers" associated to it.
             # Those modifiers hold the nodes whose attributes are to be
             # modified.
@@ -157,7 +179,7 @@ def parse_attribute_injection(
 
                 # Nodes
                 if 'nodes' in modifier:
-                    for node in _expand_nodes(filename, modifier['nodes'], szn_dir):
+                    for node in _expand_nodes(parsed_topology, modifier['nodes']):
                         if node not in result[filename]['nodes']:
                             result[filename]['nodes'][node] = {}
 
@@ -169,7 +191,7 @@ def parse_attribute_injection(
                 # Ports
                 if 'ports' in modifier:
                     for port in _expand_ports(
-                            filename, _port_str_to_tuple(modifier['ports']), szn_dir):
+                            parsed_topology, _port_str_to_tuple(modifier['ports'])):
                         if port not in result[filename]['ports']:
                             result[filename]['ports'][port] = {}
 
@@ -181,7 +203,7 @@ def parse_attribute_injection(
                 # Links
                 if 'links' in modifier:
                     for link in _expand_links(
-                            filename, _link_str_to_tuple(modifier['links']), szn_dir):
+                            parsed_topology, _link_str_to_tuple(modifier['links'])):
                         if link not in result[filename]['links']:
                             result[filename]['links'][link] = {}
 
@@ -237,6 +259,34 @@ def _link_str_to_tuple(link_str_list):
     return result
 
 
+def _load_topo(filename, szn_dir):
+    """
+    Load a topology string from a file.
+
+    :param str filename: A filename to check for a topology string.
+    :param list szn_dir: List of paths to directories where *.szn files are
+     located.
+
+    :return: A topology string if found, otherwise None.
+    :rtype: str or None
+    """
+
+    # Find the topology string in the Python file
+    if filename.endswith('.py'):
+        topology = find_topology_in_python(filename, szn_dir=szn_dir)
+        if topology is None:
+            log.warning(
+                ('Skipping node expansion for attribute injection in filename '
+                '{} in the lookup path as it does not contain a TOPOLOGY or '
+                'TOPOLOGY_ID definition.').format(filename))
+    else:
+        # *.szn files just contain the topology string directly
+        with open(filename, 'r') as fd:
+            topology = fd.read().strip()
+
+    return topology
+
+
 def _expand_files(files_definitions, search_paths):
     """
     Expands a list of files definitions into the matching files paths.
@@ -289,7 +339,7 @@ def _expand_files(files_definitions, search_paths):
     return expanded_files
 
 
-def _expand_nodes(filename, nodes_definitions, szn_dir):
+def _expand_nodes(parsed_topology, nodes_definitions):
     """
     Expands a list of node definitions into the matching node names.
 
@@ -303,40 +353,12 @@ def _expand_nodes(filename, nodes_definitions, szn_dir):
         'hs*'
         'type=host'
 
-    :param str filename: A filename in which to look for matching nodes.
+    :param dict parsed_topology: A dictionary of a fully parsed topology.
     :param list nodes_definitions: A list of node definitions.
-    :param list szn_dir: List of paths to directories where *.szn files 
-     are located.
     :return: A list of matching nodes.
     """
 
     expanded_nodes = []
-
-    # Grab the topology definition from a file that contains one
-    log.debug('Trying to expand nodes in {}'.format(filename))
-    if filename.endswith('.py'):
-        topology = find_topology_in_python(filename, szn_dir=szn_dir)
-        if topology is None:
-            log.warning(
-                ('Skipping node expansion for attribute injection in filename '
-                 '{} in the lookup path as it does not contain a TOPOLOGY or TOPOLOGY_ID '
-                 'definition.').format(filename))
-            return []
-    else:
-        with open(filename, 'r') as fd:
-            topology = fd.read().strip()
-    log.debug('Found:\n{}'.format(topology))
-
-    # Parse content
-    try:
-        parsed_topology = parse_txtmeta(topology)
-    except Exception:
-        log.error(
-            ('Skipping node expansion for attribute injection in filename '
-             '{} in the lookup path as SZN format parsing failed.'
-             ).format(filename))
-        log.debug(format_exc())
-        return []
 
     for node_definition in nodes_definitions:
 
@@ -388,7 +410,7 @@ def _match_by_attr(regex, parsed_topology, kind):
     return matched_objects
 
 
-def _expand_ports(filename, ports_definitions, szn_dir):
+def _expand_ports(parsed_topology, ports_definitions):
     """
     Expands a list of port definitions into the matching port names.
 
@@ -402,39 +424,12 @@ def _expand_ports(filename, ports_definitions, szn_dir):
         'hs*:1*'
         'attr=1'
 
-    :param str filename: A filename in which to look for matching ports.
+    :param dict parsed_topology: A dictionary of a fully parsed topology.
     :param list ports_definitions: A list of port definitions.
-    :param list szn_dir: List of paths to directories where *.szn files 
-     are located.
     :return: A list of matching ports.
     """
+
     expanded_ports = []
-
-    # Grab the topology definition from a file that contains one
-    log.debug('Trying to expand ports in {}'.format(filename))
-    if filename.endswith('.py'):
-        topology = find_topology_in_python(filename, szn_dir=szn_dir)
-        if topology is None:
-            log.warning(
-                ('Skipping port expansion for attribute injection in filename '
-                 '{} in the lookup path as it does not contain a TOPOLOGY or TOPOLOGY_ID '
-                 'definition.').format(filename))
-            return []
-    else:
-        with open(filename, 'r') as fd:
-            topology = fd.read().strip()
-    log.debug('Found:\n{}'.format(topology))
-
-    # Parse content
-    try:
-        parsed_topology = parse_txtmeta(topology)
-    except Exception:
-        log.error(
-            ('Skipping port expansion for attribute injection in filename '
-             '{} in the lookup path as SZN format parsing failed.'
-             ).format(filename))
-        log.debug(format_exc())
-        return []
 
     for port_definition in ports_definitions:
 
@@ -455,7 +450,7 @@ def _expand_ports(filename, ports_definitions, szn_dir):
     return expanded_ports
 
 
-def _expand_links(filename, links_definitions, szn_dir):
+def _expand_links(parsed_topology, links_definitions):
     """
     Expands a list of links definitions into the matching link names.
 
@@ -469,40 +464,12 @@ def _expand_links(filename, links_definitions, szn_dir):
         'node*:1 -- nodeb:12*'
         'attr=2'
 
-    :param str filename: A filename in which to look for matching links.
+    :param dict parsed_topology: A dictionary of a fully parsed topology.
     :param list link_definitions: A list of link definitions.
-    :param list szn_dir: List of paths to directories where *.szn files 
-     are located.
     :return: A list of matching links.
     """
 
     expanded_links = []
-
-    # Grab the topology definition from a file that contains one
-    log.debug('Trying to expand links in {}'.format(filename))
-    if filename.endswith('.py'):
-        topology = find_topology_in_python(filename, szn_dir=szn_dir)
-        if topology is None:
-            log.warning(
-                ('Skipping link expansion for attribute injection in filename '
-                 '{} in the lookup path as it does not contain a TOPOLOGY or TOPOLOGY_ID '
-                 'definition.').format(filename))
-            return []
-    else:
-        with open(filename, 'r') as fd:
-            topology = fd.read().strip()
-    log.debug('Found:\n{}'.format(topology))
-
-    # Parse content
-    try:
-        parsed_topology = parse_txtmeta(topology)
-    except Exception:
-        log.error(
-            ('Skipping link expansion for attribute injection in filename '
-             '{} in the lookup path as SZN format parsing failed.'
-             ).format(filename))
-        log.debug(format_exc())
-        return []
 
     for link_definition in links_definitions:
 

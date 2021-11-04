@@ -14,6 +14,14 @@ Documentation
 Changelog
 =========
 
+1.5.0 (2021-11-04)
+------------------
+
+Changes
+~~~~~~~
+
+- Up to a 10x speedup when parsing attribute injection [Max Nedorezov]
+
 1.4.0 (2021-05-21)
 ------------------
 
@@ -75,7 +83,7 @@ License
 
 .. code-block:: text
 
-   Copyright (C) 2016-2019 Hewlett Packard Enterprise Development LP
+   Copyright (C) 2016-2021 Hewlett Packard Enterprise Development LP
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.

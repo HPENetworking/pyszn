@@ -21,10 +21,15 @@ Test suite for module pyszn.parser.
 
 from textwrap import dedent
 from collections import OrderedDict
+from logging import getLogger
 
 from deepdiff import DeepDiff
 
+
 from pyszn.parser import parse_txtmeta
+
+
+log = getLogger(__name__)
 
 
 def test_basic_parse():
@@ -55,33 +60,33 @@ def test_basic_parse():
         ),
         'nodes': [
             {
-                'attributes': OrderedDict([('shell', 'vtysh')]),
-                'nodes': ['sw1']
-            },
-            {
                 'attributes': OrderedDict([('type', 'host')]),
-                'nodes': ['hs1']
+                'nodes': ['hs1'],
+                'subnodes': [],
+                'parent': None,
             },
             {
                 'attributes': OrderedDict(),
-                'nodes': ['hs2']
+                'nodes': ['hs2'],
+                'subnodes': [],
+                'parent': None,
             },
             {
                 'attributes': OrderedDict([('shell', 'vtysh')]),
-                'nodes': ['sw2']
+                'nodes': ['sw1'],
+                'subnodes': [],
+                'parent': None,
+            },
+            {
+                'attributes': OrderedDict([('shell', 'vtysh')]),
+                'nodes': ['sw2'],
+                'subnodes': [],
+                'parent': None,
             },
         ],
         'ports': [
             {
-                'ports': [('sw1', '1')],
-                'attributes': OrderedDict()
-            },
-            {
                 'ports': [('hs1', '1')],
-                'attributes': OrderedDict()
-            },
-            {
-                'ports': [('sw1', 'a')],
                 'attributes': OrderedDict()
             },
             {
@@ -89,11 +94,19 @@ def test_basic_parse():
                 'attributes': OrderedDict()
             },
             {
+                'ports': [('hs2', 'a')],
+                'attributes': OrderedDict()
+            },
+            {
+                'ports': [('sw1', '1')],
+                'attributes': OrderedDict()
+            },
+            {
                 'ports': [('sw1', '4')],
                 'attributes': OrderedDict()
             },
             {
-                'ports': [('hs2', 'a')],
+                'ports': [('sw1', 'a')],
                 'attributes': OrderedDict()
             },
         ],
@@ -105,21 +118,21 @@ def test_basic_parse():
             {
                 'attributes': OrderedDict(
                     [
+                        ('attr1', 1), ('attr2', 'lorem ipsum'),
+                        ('attr3', [1, 3.0, 'B'])
+                    ]
+                ),
+                'endpoints': (('sw1', '4'), ('hs2', 'a'))
+            },
+            {
+                'attributes': OrderedDict(
+                    [
                         ('attr1', 210.0),
                         ('attr2', -0.27)
                     ]
                 ),
                 'endpoints': (('sw1', 'a'), ('hs1', 'a'))
             },
-            {
-                'attributes': OrderedDict(
-                    [
-                        ('attr1', 1), ('attr2', 'lorem ipsum'),
-                        ('attr3', [1, 3.0, 'B'])
-                    ]
-                ),
-                'endpoints': (('sw1', '4'), ('hs2', 'a'))
-            }
         ]
     }
 
@@ -139,7 +152,12 @@ def test_autonode():
 
     expected = {
         'environment': OrderedDict(),
-        'nodes': [{'attributes': OrderedDict(), 'nodes': ['sw1']}],
+        'nodes': [{
+            'attributes': OrderedDict(),
+            'nodes': ['sw1'],
+            'subnodes': [],
+            'parent': None,
+        }],
         'ports': [{'ports': [('sw1', 'port1')], 'attributes': OrderedDict()}],
         'links': []
     }
@@ -245,15 +263,21 @@ def test_attributes():
         'nodes': [
             {
                 'attributes': OrderedDict([('attr', 'value')]),
-                'nodes': ['hs1']
-            },
-            {
-                'attributes': OrderedDict([('attr', 'value')]),
-                'nodes': ['hs3']
+                'nodes': ['hs1'],
+                'subnodes': [],
+                'parent': None,
             },
             {
                 'attributes': OrderedDict(),
-                'nodes': ['hs2']
+                'nodes': ['hs2'],
+                'subnodes': [],
+                'parent': None,
+            },
+            {
+                'attributes': OrderedDict([('attr', 'value')]),
+                'nodes': ['hs3'],
+                'subnodes': [],
+                'parent': None,
             },
         ],
         'ports': [],
@@ -276,11 +300,135 @@ def test_single():
         'nodes': [
             {
                 'attributes': OrderedDict([('attr', 'value')]),
-                'nodes': ['hs1']
+                'nodes': ['hs1'],
+                'subnodes': [],
+                'parent': None,
             },
         ],
         'ports': [],
         'links': []
     }
 
+    assert not DeepDiff(actual, expected)
+
+
+def test_subnodes():
+    """
+    Test the capability of specifying subnodes.
+    """
+    topology = """
+    # Level 0  nodes
+    [color=red] switch1
+    [color=blue] switch2
+
+    # Level 1 node
+    [flavor=vanilla] switch1>card1
+
+    # Level 2 node
+    [flavor="blue-berry"] switch1>card1>subcard1
+
+    # Links
+    # Link from a level 0 node to a level 0 node
+    [link_mood=happy] switch2:port1 -- switch1:port1
+
+    # Link from a level 0 node to a level 1 node
+    switch2:port2 -- switch1>card1:port1
+
+    # Link from a level 0 node to a level 2 node
+    switch2:port3 -- switch1>card1>subcard1:port1
+
+    # Ports
+    # Level 0 port
+    [speed_gbps=10] switch1:port1
+
+    # Level 1 port
+    [speed_gbps=20] switch1>card1:port1
+
+    # Level 2 port
+    [speed_gbps=30] switch1>card1>subcard1:port1
+    """
+    actual = parse_txtmeta(topology)
+
+    expected = {
+        'environment': OrderedDict(),
+
+        # Nodes are sorted alphabetically by node name
+        'nodes': [
+            {
+                'attributes': OrderedDict([('color', 'red')]),
+                'nodes': ['switch1'],
+                'subnodes': ['switch1>card1'],
+                'parent': None,
+            },
+            {
+                'attributes': OrderedDict([('flavor', 'vanilla')]),
+                'nodes': ['switch1>card1'],
+                'subnodes': ['switch1>card1>subcard1'],
+                'parent': 'switch1',
+            },
+            {
+                'attributes': OrderedDict([('flavor', 'blue-berry')]),
+                'nodes': ['switch1>card1>subcard1'],
+                'subnodes': [],
+                'parent': 'switch1>card1',
+            },
+            {
+                'attributes': OrderedDict([('color', 'blue')]),
+                'nodes': ['switch2'],
+                'subnodes': [],
+                'parent': None,
+            },
+
+        ],
+
+        # Ports are sorted alphabetically by the ports field
+        'ports': [
+            {
+                'ports': [('switch1', 'port1')],
+                'attributes': OrderedDict([('speed_gbps', 10)])
+            },
+            {
+                'ports': [('switch1>card1', 'port1')],
+                'attributes': OrderedDict([('speed_gbps', 20)])
+            },
+            {
+                'ports': [('switch1>card1>subcard1', 'port1')],
+                'attributes': OrderedDict([('speed_gbps', 30)])
+            },
+            {
+                'ports': [('switch2', 'port1')],
+                'attributes': OrderedDict()
+            },
+            {
+                'ports': [('switch2', 'port2')],
+                'attributes': OrderedDict()
+            },
+            {
+                'ports': [('switch2', 'port3')],
+                'attributes': OrderedDict()
+            },
+        ],
+
+        # Links are sorted alphabetically by the endpoints field
+        'links': [
+            {
+                'attributes': OrderedDict(
+                    [
+                        ('link_mood', 'happy'),
+                    ]
+                ),
+                'endpoints': (('switch2', 'port1'), ('switch1', 'port1'))
+            },
+            {
+                'attributes': OrderedDict(),
+                'endpoints': (('switch2', 'port2'), ('switch1>card1', 'port1'))
+            },
+            {
+                'attributes': OrderedDict(),
+                'endpoints': (
+                    ('switch2', 'port3'), ('switch1>card1>subcard1', 'port1')
+                )
+            },
+        ]
+    }
     assert not DeepDiff(actual, expected)

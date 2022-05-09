@@ -140,7 +140,8 @@ def build_parser():
         Suppress(Literal(']'))
     )
 
-    node = identifier('node')
+    node = Word(alphas, alphanums + '_' + '>')('node')
+
     port = Group(
         node + Suppress(Literal(':')) + (identifier | inumber)('port')
     )
@@ -276,9 +277,29 @@ def parse_txtmeta(txtmeta):
     for node_list in data['nodes']:
         for node in node_list['nodes']:
             if node not in temp_nodes.keys():
-                temp_nodes[node] = deepcopy(node_list['attributes'])
+                temp_nodes[node] = {
+                    'attributes': deepcopy(node_list['attributes']),
+                    'nodes': [node],
+                    'subnodes': []
+                }
             else:
-                temp_nodes[node].update(node_list['attributes'])
+                temp_nodes[node]['attributes'].update(node_list['attributes'])
+
+            depth = node.count('>')
+            parent = None if depth == 0 else node.rsplit('>', 1)[-2]
+            temp_nodes[node]['parent'] = parent
+            temp_nodes[node]['depth'] = depth
+
+    for node, spec in sorted(
+        temp_nodes.items(), key=lambda t: t[1]['depth'], reverse=True
+    ):
+        parent = spec['parent']
+        if parent is not None:
+            parent_node = temp_nodes[parent]
+            siblings = parent_node['subnodes']
+            siblings.append(node)
+
+        del spec['depth']
 
     temp_ports = OrderedDict()
     for port_list in data['ports']:
@@ -289,12 +310,25 @@ def parse_txtmeta(txtmeta):
                 temp_ports[port].update(port_list['attributes'])
 
     data['nodes'] = [
-        {'nodes': [k], 'attributes': v} for k, v in temp_nodes.items()
+        {
+            'nodes': [k],
+            'attributes': v['attributes'],
+            'subnodes': v['subnodes'],
+            'parent': v['parent'],
+        }
+        # Sort by node name
+        for k, v in sorted(temp_nodes.items(), key=lambda t: t[0])
     ]
 
     data['ports'] = [
-        {'ports': [k], 'attributes': v} for k, v in temp_ports.items()
+        {'ports': [k], 'attributes': v}
+        # Sort by port name
+        for k, v in sorted(temp_ports.items(), key=lambda t: t[0])
     ]
+
+    # Sort by endpoints
+    data['links'] = sorted(data['links'], key=lambda t: t['endpoints'])
+
     return data
 
 

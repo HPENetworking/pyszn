@@ -132,7 +132,8 @@ def parse_attribute_injection(
         injection_spec = loads(fd.read())
 
     # Cache the parsed topologies to not parse them again and again
-    # Key is a topology string and return is a dictionary of the parsed topology
+    # Key is a topology string and return is a dictionary of the parsed
+    # topology
     parsed_topologies_cache = {}
 
     result = OrderedDict()
@@ -166,8 +167,10 @@ def parse_attribute_injection(
                     parsed_topologies_cache[topology] = parsed_topology
                 except Exception:
                     log.error(
-                        ('Skipping node expansion for attribute injection in filename '
-                        '{} in the lookup path as SZN format parsing failed.'
+                        (
+                            'Skipping node expansion for attribute injection '
+                            'in filename {} in the lookup path as SZN format '
+                            'parsing failed.'
                         ).format(filename))
                     log.debug(format_exc())
                     break
@@ -179,7 +182,9 @@ def parse_attribute_injection(
 
                 # Nodes
                 if 'nodes' in modifier:
-                    for node in _expand_nodes(parsed_topology, modifier['nodes']):
+                    for node in _expand_nodes(
+                        parsed_topology, modifier['nodes']
+                    ):
                         if node not in result[filename]['nodes']:
                             result[filename]['nodes'][node] = {}
 
@@ -191,7 +196,9 @@ def parse_attribute_injection(
                 # Ports
                 if 'ports' in modifier:
                     for port in _expand_ports(
-                            parsed_topology, _port_str_to_tuple(modifier['ports'])):
+                        parsed_topology,
+                        _port_str_to_tuple(modifier['ports'])
+                    ):
                         if port not in result[filename]['ports']:
                             result[filename]['ports'][port] = {}
 
@@ -203,7 +210,9 @@ def parse_attribute_injection(
                 # Links
                 if 'links' in modifier:
                     for link in _expand_links(
-                            parsed_topology, _link_str_to_tuple(modifier['links'])):
+                        parsed_topology,
+                        _link_str_to_tuple(modifier['links'])
+                    ):
                         if link not in result[filename]['links']:
                             result[filename]['links'][link] = {}
 
@@ -276,9 +285,11 @@ def _load_topo(filename, szn_dir):
         topology = find_topology_in_python(filename, szn_dir=szn_dir)
         if topology is None:
             log.warning(
-                ('Skipping node expansion for attribute injection in filename '
-                '{} in the lookup path as it does not contain a TOPOLOGY or '
-                'TOPOLOGY_ID definition.').format(filename))
+                (
+                    'Skipping node expansion for attribute injection in '
+                    'filename {} in the lookup path as it does not contain '
+                    ' a TOPOLOGY or TOPOLOGY_ID definition.'
+                ).format(filename))
     else:
         # *.szn files just contain the topology string directly
         with open(filename, 'r') as fd:

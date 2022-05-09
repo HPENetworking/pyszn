@@ -324,13 +324,20 @@ def find_topology_in_python(filename, szn_dir=None):
                 return node.value.s
             elif node.targets[0].id == 'TOPOLOGY_ID':
                 if not szn_dir:
-                    raise RuntimeError('Found a TOPOLOGY_ID, but no SZN search path was defined')
+                    raise RuntimeError(
+                        'Found a TOPOLOGY_ID, but no SZN search '
+                        'path was defined'
+                    )
                 topology_id = node.value.s
                 for search_path in szn_dir:
-                    for filename in glob(str(Path(search_path)/'{}.szn'.format(topology_id))):
+                    for filename in glob(str(
+                        Path(search_path)/'{}.szn'.format(topology_id)
+                    )):
                         return Path(filename).read_text(encoding='utf-8')
-                raise FileNotFoundError('Topology file with ID {} could not be found'.format(topology_id))
-
+                raise FileNotFoundError(
+                    'Topology file with ID {} '
+                    'could not be found'.format(topology_id)
+                )
 
     except Exception:
         log.error(format_exc())

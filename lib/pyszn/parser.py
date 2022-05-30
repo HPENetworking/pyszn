@@ -56,6 +56,7 @@ import logging
 from glob import glob
 from pathlib import Path
 from copy import deepcopy
+from textwrap import dedent
 from traceback import format_exc
 from collections import OrderedDict
 
@@ -99,7 +100,7 @@ def build_parser():
     """
     ParserElement.setDefaultWhitespaceChars(' \t')
     nl = Suppress(LineEnd())
-    inumber = Word(nums).setParseAction(lambda l, s, t: int(t[0]))
+    inumber = Word(nums).setParseAction(lambda toks: int(toks[0]))
     fnumber = (
         Combine(
             Optional('-') + Word(nums) + '.' + Word(nums) +
@@ -111,6 +112,10 @@ def build_parser():
     ).setParseAction(lambda l, s, t: t[0].casefold() == 'true')
     comment = Literal('#') + restOfLine + nl
     text = QuotedString('"')
+
+    multiline_text = QuotedString('```', multiline=True)
+    multiline_text.addParseAction(lambda t: dedent(t[0]))
+
     identifier = Word(alphas, alphanums + '_')
     empty_line = LineStart() + LineEnd()
     item_list = (
@@ -124,7 +129,7 @@ def build_parser():
     attribute = Group(
         identifier('key') + Suppress(Literal('=')) +
         (
-            custom_list | text | fnumber | inumber | boolean |
+            custom_list | multiline_text | text | fnumber | inumber | boolean |
             identifier
         )('value')
         + Optional(nl)
@@ -319,13 +324,20 @@ def find_topology_in_python(filename, szn_dir=None):
                 return node.value.s
             elif node.targets[0].id == 'TOPOLOGY_ID':
                 if not szn_dir:
-                    raise RuntimeError('Found a TOPOLOGY_ID, but no SZN search path was defined')
+                    raise RuntimeError(
+                        'Found a TOPOLOGY_ID, but no SZN search '
+                        'path was defined'
+                    )
                 topology_id = node.value.s
                 for search_path in szn_dir:
-                    for filename in glob(str(Path(search_path)/'{}.szn'.format(topology_id))):
+                    for filename in glob(str(
+                        Path(search_path)/'{}.szn'.format(topology_id)
+                    )):
                         return Path(filename).read_text(encoding='utf-8')
-                raise FileNotFoundError('Topology file with ID {} could not be found'.format(topology_id))
-
+                raise FileNotFoundError(
+                    'Topology file with ID {} '
+                    'could not be found'.format(topology_id)
+                )
 
     except Exception:
         log.error(format_exc())

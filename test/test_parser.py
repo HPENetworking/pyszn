@@ -19,6 +19,7 @@
 Test suite for module pyszn.parser.
 """
 
+from textwrap import dedent
 from collections import OrderedDict
 
 from deepdiff import DeepDiff
@@ -26,7 +27,7 @@ from deepdiff import DeepDiff
 from pyszn.parser import parse_txtmeta
 
 
-def test_parse():
+def test_basic_parse():
     """
     Tests parsing of a complete SZN
     """
@@ -146,9 +147,9 @@ def test_autonode():
     assert not DeepDiff(actual, expected)
 
 
-def test_multiline():
+def test_multiline_list():
     """
-    Test the support for multiline attributes
+    Test the support for multiline list attributes
     """
     topology = """
     # Environment
@@ -170,6 +171,54 @@ def test_multiline():
             [
                 ('virtual', 'none'), ('awesomeness', 'medium'), ('float', 1.0),
                 ('list', [1, 3.14, True])
+            ]
+        ),
+        'nodes': [],
+        'ports': [],
+        'links': []
+    }
+
+    assert not DeepDiff(actual, expected)
+
+
+def test_multiline_text():
+    """
+    Test the support for multiline text attributes
+    """
+    topology = '''
+    # Environment
+    [
+        virtual=none
+        awesomeness=medium
+        float=1.0
+        multiline_text=```
+            Buenos Aires
+            se ve tan susceptible
+            Es el destino de furia, es
+                lo que en sus caras persiste
+        ```
+    ]
+    '''
+    actual = parse_txtmeta(topology)
+
+    expected = {
+        'environment': OrderedDict(
+            [
+                ('virtual', 'none'),
+                ('awesomeness', 'medium'),
+                ('float', 1.0),
+
+                # Multiline string attribute values are parsed using
+                # textwrap.dedent()
+                (
+                    'multiline_text',
+                    dedent("""
+                        Buenos Aires
+                        se ve tan susceptible
+                        Es el destino de furia, es
+                            lo que en sus caras persiste
+                    """)
+                )
             ]
         ),
         'nodes': [],

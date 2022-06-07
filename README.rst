@@ -23,7 +23,7 @@ New
 - Add the capability to specify subnodes by using ´node>subnode´ syntax.
 
 - Add the capability to specify a multiline text as value of an 
-  attribute by using ``` [Sergio Salazar]
+  attribute by using \`\`\` [Sergio Salazar]
 
 1.5.0 (2021-11-04)
 ------------------

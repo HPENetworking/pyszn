@@ -14,6 +14,17 @@ Documentation
 Changelog
 =========
 
+1.6.0 (2022-06-07)
+------------------
+
+New
+~~~
+
+- Add the capability to specify subnodes by using ´node>subnode´ syntax.
+
+- Add the capability to specify a multiline text as value of an 
+  attribute by using ``` [Sergio Salazar]
+
 1.5.0 (2021-11-04)
 ------------------
 

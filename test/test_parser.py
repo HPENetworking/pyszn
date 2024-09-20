@@ -432,3 +432,120 @@ def test_subnodes():
         ]
     }
     assert not DeepDiff(actual, expected)
+
+
+def test_natural_order():
+    """
+    Tests order of node, ports and links
+    """
+
+    topology = """
+    # Nodes
+    sw1
+    sw2
+    sw10
+    hs1
+    hw2
+    hs10
+
+    # Links
+    sw1:1 -- hs1:1
+    sw1:2 -- hs2:1
+    sw1:10 -- hs10:1
+
+    sw2:1 -- hs1:10
+    sw2:2 -- hs2:11
+    sw2:10 -- hs10:12
+    """
+
+    actual = parse_txtmeta(topology)
+
+    expected = {
+        'environment': OrderedDict(),
+        'links': [
+            {
+                'attributes': OrderedDict(),
+                'endpoints': (('sw1', '1'), ('hs1', '1'))
+            },
+            {
+                'attributes': OrderedDict(),
+                'endpoints': (('sw1', '2'), ('hs2', '1'))
+            },
+            {
+                'attributes': OrderedDict(),
+                'endpoints': (('sw1', '10'), ('hs10', '1')),
+            },
+            {
+                'attributes': OrderedDict(),
+                'endpoints': (('sw2', '1'), ('hs1', '10')),
+            },
+            {
+                'attributes': OrderedDict(),
+                'endpoints': (('sw2', '2'), ('hs2', '11')),
+            },
+            {
+                'attributes': OrderedDict(),
+                'endpoints': (('sw2', '10'), ('hs10', '12')),
+            },
+        ],
+        'nodes': [
+            {
+                'attributes': OrderedDict(),
+                'nodes': ['hs1'],
+                'parent': None,
+                'subnodes': [],
+            },
+            {
+                'attributes': OrderedDict(),
+                'nodes': ['hs2'],
+                'parent': None,
+                'subnodes': [],
+            },
+            {
+                'attributes': OrderedDict(),
+                'nodes': ['hs10'],
+                'parent': None,
+                'subnodes': [],
+            },
+            {
+                'attributes': OrderedDict(),
+                'nodes': ['hw2'],
+                'parent': None,
+                'subnodes': [],
+            },
+            {
+                'attributes': OrderedDict(),
+                'nodes': ['sw1'],
+                'parent': None,
+                'subnodes': [],
+            },
+            {
+                'attributes': OrderedDict(),
+                'nodes': ['sw2'],
+                'parent': None,
+                'subnodes': [],
+            },
+            {
+                'attributes': OrderedDict(),
+                'nodes': ['sw10'],
+                'parent': None,
+                'subnodes': [],
+            },
+        ],
+        'ports': [
+            {'attributes': OrderedDict(), 'ports': [('hs1', '1')]},
+            {'attributes': OrderedDict(), 'ports': [('hs1', '10')]},
+            {'attributes': OrderedDict(), 'ports': [('hs2', '1')]},
+            {'attributes': OrderedDict(), 'ports': [('hs2', '11')]},
+            {'attributes': OrderedDict(), 'ports': [('hs10', '1')]},
+            {'attributes': OrderedDict(), 'ports': [('hs10', '12')]},
+            {'attributes': OrderedDict(), 'ports': [('sw1', '1')]},
+            {'attributes': OrderedDict(), 'ports': [('sw1', '2')]},
+            {'attributes': OrderedDict(), 'ports': [('sw1', '10')]},
+            {'attributes': OrderedDict(), 'ports': [('sw2', '1')]},
+            {'attributes': OrderedDict(), 'ports': [('sw2', '2')]},
+            {'attributes': OrderedDict(), 'ports': [('sw2', '10')]},
+        ],
+    }
+
+    assert not DeepDiff(actual, expected)

@@ -14,6 +14,15 @@ Documentation
 Changelog
 =========
 
+
+1.7.0 (2024-10-04)
+------------------
+
+New
+~~~
+
+- Nodes, ports and links are now ordered using natural sorter. [Carlos Jenkins]
+
 1.6.0 (2022-06-07)
 ------------------
 
@@ -94,7 +103,7 @@ License
 
 .. code-block:: text
 
-   Copyright (C) 2016-2021 Hewlett Packard Enterprise Development LP
+   Copyright (C) 2016-2024 Hewlett Packard Enterprise Development LP
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.

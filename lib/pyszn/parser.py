@@ -53,6 +53,7 @@ of a node and a port name.
 """
 
 import logging
+from re import split
 from glob import glob
 from pathlib import Path
 from copy import deepcopy
@@ -68,6 +69,25 @@ from pyparsing import (
 )
 
 log = logging.getLogger(__name__)
+
+
+def naturalkey(element):
+    """
+    Return a tuple with the string and integer components of a given string.
+
+    For example::
+
+        naturalkey('node01') -> ('node', 1)
+
+    :param str element: The string to decompose.
+
+    :return: The string and integer components of the string.
+    :rtype: tuple
+    """
+    return tuple(
+        int(token) if token.isdigit() else token.lower()
+        for token in split('([0-9]+)', element)
+    )
 
 
 class ParseException(Exception):
@@ -265,7 +285,7 @@ def parse_txtmeta(txtmeta):
         for parsed in parsed_result['node_spec']:
             nodes = parsed[0].nodes
             attrs = OrderedDict()
-            if "attributes" in parsed[0]:
+            if 'attributes' in parsed[0]:
                 for attr in parsed[0].attributes:
                     attrs[attr.key] = attr.value[0]
             data['nodes'].append({
@@ -318,17 +338,35 @@ def parse_txtmeta(txtmeta):
             'parent': v['parent'],
         }
         # Sort by node name
-        for k, v in sorted(temp_nodes.items(), key=lambda t: t[0])
+        for k, v in sorted(
+            temp_nodes.items(),
+            key=lambda e: naturalkey(e[0]),
+        )
     ]
 
     data['ports'] = [
         {'ports': [k], 'attributes': v}
-        # Sort by port name
-        for k, v in sorted(temp_ports.items(), key=lambda t: t[0])
+        # Sort by node name and port name ('node01', 'port01')
+        for k, v in sorted(
+            temp_ports.items(),
+            key=lambda e: tuple(
+                naturalkey(part)
+                for part in e[0]
+            ),
+        )
     ]
 
-    # Sort by endpoints
-    data['links'] = sorted(data['links'], key=lambda t: t['endpoints'])
+    data['links'] = sorted(
+        data['links'],
+        # Sort by endpoints (('node01', 'port01'), ('node02', 'port02'))
+        key=lambda e: tuple(
+            tuple(
+                naturalkey(subpart)
+                for subpart in part
+            )
+            for part in e['endpoints']
+        )
+    )
 
     return data
 
@@ -366,7 +404,7 @@ def find_topology_in_python(filename, szn_dir=None):
                 topology_id = node.value.s
                 for search_path in szn_dir:
                     for filename in glob(str(
-                        Path(search_path)/'{}.szn'.format(topology_id)
+                        Path(search_path) / '{}.szn'.format(topology_id)
                     )):
                         return Path(filename).read_text(encoding='utf-8')
                 raise FileNotFoundError(

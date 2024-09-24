@@ -10,7 +10,7 @@ pprintpp
 #######################
 
 deepdiff
-pytest==3.6.3
+pytest
 pytest-logging
 pytest-cov
 
@@ -26,7 +26,7 @@ pep8-naming
 # Documentation       #
 #######################
 
-sphinx==1.7.8
+sphinx
 autoapi
 plantweb
 pygments-github-lexers

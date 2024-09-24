@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2015-2019 Hewlett Packard Enterprise Development LP
+# Copyright (C) 2015-2024 Hewlett Packard Enterprise Development LP
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -103,13 +103,13 @@ def build_parser():
     inumber = Word(nums).setParseAction(lambda toks: int(toks[0]))
     fnumber = (
         Combine(
-            Optional('-') + Word(nums) + '.' + Word(nums) +
-            Optional('E' | 'e' + Optional('-') + Word(nums))
+            Optional('-') + Word(nums) + '.' + Word(nums)
+            + Optional('E' | 'e' + Optional('-') + Word(nums))
         )
     ).setParseAction(lambda toks: float(toks[0]))
     boolean = (
         CaselessLiteral('true') | CaselessLiteral('false')
-    ).setParseAction(lambda l, s, t: t[0].casefold() == 'true')
+    ).setParseAction(lambda s, loc, toks: toks[0].casefold() == 'true')
     comment = Literal('#') + restOfLine + nl
     text = QuotedString('"')
 
@@ -119,25 +119,26 @@ def build_parser():
     identifier = Word(alphas, alphanums + '_')
     empty_line = LineStart() + LineEnd()
     item_list = (
-        (text | fnumber | inumber | boolean) + Optional(Suppress(',')) +
-        Optional(nl)
+        (text | fnumber | inumber | boolean)
+        + Optional(Suppress(',')) + Optional(nl)
     )
     custom_list = (
-        Suppress('(') + Optional(nl) + Group(OneOrMore(item_list)) +
-        Optional(nl) + Suppress(')')
+        Suppress('(') + Optional(nl) + Group(OneOrMore(item_list))
+        + Optional(nl) + Suppress(')')
     ).setParseAction(lambda tok: tok.asList())
     attribute = Group(
-        identifier('key') + Suppress(Literal('=')) +
-        (
-            custom_list | multiline_text | text | fnumber | inumber | boolean |
-            identifier
+        identifier('key') + Suppress(Literal('='))
+        + (
+            custom_list | multiline_text | text | fnumber
+            | inumber | boolean | identifier
         )('value')
         + Optional(nl)
     )
     attributes = (
-        Suppress(Literal('[')) + Optional(nl) +
-        OneOrMore(attribute) +
-        Suppress(Literal(']'))
+        Suppress(Literal('['))
+        + Optional(nl)
+        + OneOrMore(attribute)
+        + Suppress(Literal(']'))
     )
 
     node = Word(alphas, alphanums + '_' + '>')('node')
@@ -154,14 +155,14 @@ def build_parser():
     ).setResultsName('env_spec', listAllMatches=True)
     nodes_spec = (
         Group(
-            Optional(attributes)('attributes') +
-            Group(OneOrMore(node))('nodes')
+            Optional(attributes)('attributes')
+            + Group(OneOrMore(node))('nodes')
         ) + nl
     ).setResultsName('node_spec', listAllMatches=True)
     ports_spec = (
         Group(
-            Optional(attributes)('attributes') +
-            Group(OneOrMore(port))('ports')
+            Optional(attributes)('attributes')
+            + Group(OneOrMore(port))('ports')
         ) + nl
     ).setResultsName('port_spec', listAllMatches=True)
     link_spec = (
@@ -171,12 +172,12 @@ def build_parser():
     ).setResultsName('link_spec', listAllMatches=True)
 
     statements = OneOrMore(
-        comment |
-        link_spec |
-        ports_spec |
-        nodes_spec |
-        environment_spec |
-        empty_line
+        comment
+        | link_spec
+        | ports_spec
+        | nodes_spec
+        | environment_spec
+        | empty_line
     )
     return statements
 

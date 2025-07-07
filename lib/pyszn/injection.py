@@ -173,7 +173,7 @@ def parse_attribute_injection(
                             'parsing failed.'
                         ).format(filename))
                     log.debug(format_exc())
-                    break
+                    continue
 
             # Each specification have several "modifiers" associated to it.
             # Those modifiers hold the nodes whose attributes are to be

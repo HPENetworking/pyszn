@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyszn"
+description = "A Python package for the Simplified Zone Notation standard"
+dynamic = ["version"]
+readme = {file = "README.rst", content-type = "text/x-rst"}
+license = {text = "Apache-2.0"}
+authors = [
+    {name = "Hewlett Packard Enterprise Development LP", email = "hpe-networking@lists.hp.com"}
+]
+keywords = ["pyszn"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Natural Language :: English",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "pyparsing",
+]
+
+[project.urls]
+Homepage = "https://github.com/HPENetworking/pyszn"
+Documentation = "https://pyszn.readthedocs.org/"
+
+[tool.setuptools]
+package-dir = {"" = "lib"}
+
+[tool.setuptools.dynamic]
+version = {attr = "pyszn.__version__"}
+
+[tool.setuptools.packages.find]
+where = ["lib"]

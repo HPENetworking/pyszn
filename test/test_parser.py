@@ -1,6 +1,4 @@
-# -*- coding: utf-8 -*-
-#
-# Copyright (C) 2015-2018 Hewlett Packard Enterprise Development LP
+# Copyright (C) 2015-2025 Hewlett Packard Enterprise Development LP
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -136,6 +134,12 @@ def test_basic_parse():
         ]
     }
 
+    from pprintpp import pprint
+    print('=' * 100)
+    pprint(actual)
+    print('>' * 100)
+    pprint(expected)
+    print('=' * 100)
     assert not DeepDiff(actual, expected)
 
 

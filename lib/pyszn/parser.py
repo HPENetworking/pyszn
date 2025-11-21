@@ -16,16 +16,13 @@
 """
 SZN parser module.
 
-This module takes care of parsing a topology meta-description written in SZN.
+This module takes care of parsing a topology description written in SZN.
 
-This topology representation format allows to quickly specify simple topologies
-that are only composed of simple nodes, ports and links between them. For a
-more programmatic format consider the ``metadict`` format or using the
-:class:`pynml.manager.ExtendedNMLManager` directly.
+This topology representation format allows to quickly specify network
+topologies that are composed of nodes, ports and links between them.
 
-The format for the textual description of a topology is similar to Graphviz
-syntax and allows to define nodes and ports with shared attributes and links
-between two endpoints with shared attributes too.
+The format is similar to the Graphviz (graph) syntax and allows to define
+a hierarchy of nodes, ports and links between two ports with shared attributes.
 
 ::
 
@@ -60,10 +57,13 @@ from traceback import format_exc
 from collections import OrderedDict
 
 from pyparsing import (
-    Word, Literal, QuotedString,
-    ParserElement, alphas, nums, alphanums,
+    ParserElement, restOfLine,
+    Word, Literal, CaselessLiteral,
+    alphas, nums, alphanums,
+    QuotedString,
     Group, OneOrMore, Optional,
-    LineEnd, Suppress, LineStart, restOfLine, CaselessLiteral, Combine
+    LineEnd, LineStart, Suppress, Combine,
+    Forward,
 )
 
 log = logging.getLogger(__name__)
@@ -116,86 +116,152 @@ def build_parser():
     :return: A pyparsing parser.
     :rtype: pyparsing.MatchFirst
     """
+    # Whitespace
     ParserElement.setDefaultWhitespaceChars(' \t')
     nl = Suppress(LineEnd())
-    inumber = Word(nums).setParseAction(lambda toks: int(toks[0]))
+    empty_line = LineStart() + LineEnd()
+    comment = Literal('#') + restOfLine + nl
+
+    # Scalar types
+    identifier = Word(alphas, alphanums + '_')
+    inumber = Word(nums).setParseAction(
+        lambda toks: int(toks[0])
+    )
     fnumber = (
         Combine(
-            Optional('-') + Word(nums) + '.' + Word(nums)
+            Optional('-')
+            + Word(nums)
+            + '.'
+            + Word(nums)
             + Optional('E' | 'e' + Optional('-') + Word(nums))
         )
-    ).setParseAction(lambda toks: float(toks[0]))
-    boolean = (
-        CaselessLiteral('true') | CaselessLiteral('false')
-    ).setParseAction(lambda s, loc, toks: toks[0].casefold() == 'true')
-    comment = Literal('#') + restOfLine + nl
-    text = QuotedString('"')
-
-    multiline_text = QuotedString('```', multiline=True)
-    multiline_text.addParseAction(lambda t: dedent(t[0]))
-
-    identifier = Word(alphas, alphanums + '_')
-    empty_line = LineStart() + LineEnd()
-    item_list = (
-        (text | fnumber | inumber | boolean)
-        + Optional(Suppress(',')) + Optional(nl)
+    ).setParseAction(
+        lambda toks: float(toks[0])
     )
-    custom_list = (
-        Suppress('(') + Optional(nl) + Group(OneOrMore(item_list))
-        + Optional(nl) + Suppress(')')
-    ).setParseAction(lambda tok: tok.asList())
-    attribute = Group(
-        identifier('key') + Suppress(Literal('='))
-        + (
-            custom_list | multiline_text | text | fnumber
-            | inumber | boolean | identifier
-        )('value')
+    boolean = (
+        CaselessLiteral('true')
+        | CaselessLiteral('false')
+    ).setParseAction(
+        lambda toks: toks[0].casefold() == 'true'
+    )
+    text = QuotedString('"')
+    text_multiline = QuotedString(
+        '```',
+        multiline=True,
+    ).addParseAction(
+        lambda toks: dedent(toks[0])
+    )
+
+    scalar = (
+        identifier
+        | inumber
+        | fnumber
+        | boolean
+        | text
+        | text_multiline
+    )
+
+    # Composite types
+    collection = Forward()
+    mapping = Forward()
+
+    datatype = (
+        scalar
+        | collection
+        | mapping
+    )
+
+    element = (
+        datatype
+        + Optional(Suppress(','))
         + Optional(nl)
     )
-    attributes = (
+    collection <<= (
+        Suppress('(')
+        + Optional(nl)
+        + Group(OneOrMore(element))
+        + Optional(nl)
+        + Suppress(')')
+    ).setParseAction(
+        lambda tok: tok.asList()
+    )
+
+    attribute = Group(
+        identifier('key')
+        + Suppress(Literal('='))
+        + datatype('value')
+        + Optional(nl)
+    )
+    mapping <<= (
         Suppress(Literal('['))
         + Optional(nl)
         + OneOrMore(attribute)
         + Suppress(Literal(']'))
     )
 
+    # Topology elements
+    # TODO: Current node definition may allow invalid hierarchies
+    #       like 'node1>>node2'
     node = Word(alphas, alphanums + '_' + '>')('node')
-
     port = Group(
-        node + Suppress(Literal(':')) + (identifier | inumber)('port')
+        node
+        + Suppress(Literal(':'))
+        + (identifier | inumber)('port')
     )
     link = Group(
-        port('endpoint_a') + Suppress(Literal('--')) + port('endpoint_b')
+        port('endpoint_a')
+        + Suppress(Literal('--'))
+        + port('endpoint_b')
     )
 
+    # Sections
     environment_spec = (
-        attributes + nl
-    ).setResultsName('env_spec', listAllMatches=True)
+        mapping
+        + nl
+    ).setResultsName(
+        'env_spec',
+        listAllMatches=True,
+    )
+
     nodes_spec = (
         Group(
-            Optional(attributes)('attributes')
+            Optional(mapping)('attributes')
             + Group(OneOrMore(node))('nodes')
-        ) + nl
-    ).setResultsName('node_spec', listAllMatches=True)
+        )
+        + nl
+    ).setResultsName(
+        'node_spec',
+        listAllMatches=True,
+    )
+
     ports_spec = (
         Group(
-            Optional(attributes)('attributes')
+            Optional(mapping)('attributes')
             + Group(OneOrMore(port))('ports')
-        ) + nl
-    ).setResultsName('port_spec', listAllMatches=True)
+        )
+        + nl
+    ).setResultsName(
+        'port_spec',
+        listAllMatches=True,
+    )
+
     link_spec = (
         Group(
-            Optional(attributes)('attributes') + link('links')
-        ) + nl
-    ).setResultsName('link_spec', listAllMatches=True)
+            Optional(mapping)('attributes') + link('links')
+        )
+        + nl
+    ).setResultsName(
+        'link_spec',
+        listAllMatches=True,
+    )
 
     statements = OneOrMore(
         comment
-        | link_spec
-        | ports_spec
-        | nodes_spec
-        | environment_spec
         | empty_line
+        | environment_spec
+        | nodes_spec
+        | ports_spec
+        | link_spec
     )
     return statements
 

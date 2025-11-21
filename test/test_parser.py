@@ -197,6 +197,48 @@ def test_multiline_list():
     assert not DeepDiff(actual, expected)
 
 
+def test_composite():
+    """
+    Test support for recursive composite (nested) attribute datatypes.
+
+    The parser allows collections (parentheses) and mappings (brackets) to be
+    nested arbitrarily deep inside one another as attribute values.
+    """
+    topology = """
+    # Environment
+    [
+        flat=(1, 2, 3)
+        nested=(1, (2, True), "hello")
+        deep=((1, 2), (3, (4, False)))
+        map_in_list=([key=1], [key=2], [key1=1 key2=2 key3=(1, 2, 3)])
+    ]
+    """
+    actual = parse_txtmeta(topology)
+
+    from pprintpp import pprint
+    pprint(actual)
+
+    expected = {
+        'environment': OrderedDict(
+            [
+                ('flat', [1, 2, 3]),
+                ('nested', [1, [2, True], 'hello']),
+                ('deep', [[1, 2], [3, [4, False]]]),
+                ('map_in_list', [
+                    ['key', 1],
+                    ['key', 2],
+                    ['key1', 1, 'key2', 2, 'key3', [1, 2, 3]],
+                ]),
+            ]
+        ),
+        'nodes': [],
+        'ports': [],
+        'links': []
+    }
+
+    assert not DeepDiff(actual, expected)
+
+
 def test_multiline_text():
     """
     Test the support for multiline text attributes

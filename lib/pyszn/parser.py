@@ -16,16 +16,13 @@
 """
 SZN parser module.
 
-This module takes care of parsing a topology meta-description written in SZN.
+This module takes care of parsing a topology description written in SZN.
 
-This topology representation format allows to quickly specify simple topologies
-that are only composed of simple nodes, ports and links between them. For a
-more programmatic format consider the ``metadict`` format or using the
-:class:`pynml.manager.ExtendedNMLManager` directly.
+This topology representation format allows to quickly specify network
+topologies that are composed of nodes, ports and links between them.
 
-The format for the textual description of a topology is similar to Graphviz
-syntax and allows to define nodes and ports with shared attributes and links
-between two endpoints with shared attributes too.
+The format is similar to the Graphviz (graph) syntax and allows to define
+a hierarchy of nodes, ports and links between two ports with shared attributes.
 
 ::
 
@@ -59,10 +56,13 @@ from traceback import format_exc
 from collections import OrderedDict
 
 from pyparsing import (
-    Word, Literal, QuotedString,
-    ParserElement, alphas, nums, alphanums,
+    ParserElement, rest_of_line,
+    Word, Literal, CaselessLiteral,
+    alphas, nums, alphanums,
+    QuotedString,
     Group, OneOrMore, Optional,
-    LineEnd, Suppress, LineStart, restOfLine, CaselessLiteral, Combine
+    LineEnd, LineStart, Suppress, Combine,
+    Forward,
 )
 
 log = logging.getLogger(__name__)
@@ -115,86 +115,155 @@ def build_parser():
     :return: A pyparsing parser.
     :rtype: pyparsing.MatchFirst
     """
+    # Whitespace
     ParserElement.set_default_whitespace_chars(' \t')
     nl = Suppress(LineEnd())
-    inumber = Word(nums).set_parse_action(lambda toks: int(toks[0]))
+    empty_line = LineStart() + LineEnd()
+    comment = Literal('#') + rest_of_line + nl
+
+    # Scalar types
+    boolean = (
+        CaselessLiteral('true')
+        | CaselessLiteral('false')
+    ).set_parse_action(
+        lambda toks: toks[0].casefold() == 'true'
+    )
     fnumber = (
         Combine(
-            Optional('-') + Word(nums) + '.' + Word(nums)
+            Optional('-')
+            + Word(nums)
+            + '.'
+            + Word(nums)
             + Optional('E' | 'e' + Optional('-') + Word(nums))
         )
-    ).set_parse_action(lambda toks: float(toks[0]))
-    boolean = (
-        CaselessLiteral('true') | CaselessLiteral('false')
-    ).set_parse_action(lambda s, loc, toks: toks[0].casefold() == 'true')
-    comment = Literal('#') + restOfLine + nl
-    text = QuotedString('"')
-
-    multiline_text = QuotedString('```', multiline=True)
-    multiline_text.add_parse_action(lambda t: dedent(t[0]))
-
-    identifier = Word(alphas, alphanums + '_')
-    empty_line = LineStart() + LineEnd()
-    item_list = (
-        (text | fnumber | inumber | boolean)
-        + Optional(Suppress(',')) + Optional(nl)
+    ).set_parse_action(
+        lambda toks: float(toks[0])
     )
-    custom_list = (
-        Suppress('(') + Optional(nl) + Group(OneOrMore(item_list))
-        + Optional(nl) + Suppress(')')
-    ).set_parse_action(lambda tok: tok.as_list())
-    attribute = Group(
-        identifier('key') + Suppress(Literal('='))
-        + (
-            custom_list | multiline_text | text | fnumber
-            | inumber | boolean | identifier
-        )('value')
+    inumber = Word(nums).set_parse_action(
+        lambda toks: int(toks[0])
+    )
+    identifier = Word(alphas, alphanums + '_')
+    text = QuotedString('"')
+    text_multiline = QuotedString(
+        '```',
+        multiline=True,
+    ).addParseAction(
+        lambda toks: dedent(toks[0])
+    )
+
+    scalar = (
+        # Please note that the ordering here is important as it defines the
+        # precedence of parsing attempts
+        boolean
+        | fnumber
+        | inumber
+        | identifier
+        | text
+        | text_multiline
+    )
+
+    # Composite types
+    collection = Forward()
+    mapping = Forward()
+
+    datatype = (
+        scalar
+        | collection
+        | mapping
+    )
+
+    element = (
+        datatype
+        + Optional(Suppress(','))
         + Optional(nl)
     )
-    attributes = (
+    collection <<= (
+        Suppress('(')
+        + Optional(nl)
+        + Group(OneOrMore(element))
+        + Optional(nl)
+        + Suppress(')')
+    ).set_parse_action(
+        lambda tok: tok.as_list()
+    )
+
+    attribute = Group(
+        identifier('key')
+        + Suppress(Literal('='))
+        + datatype('value')
+        + Optional(nl)
+    )
+    mapping <<= (
         Suppress(Literal('['))
         + Optional(nl)
         + OneOrMore(attribute)
         + Suppress(Literal(']'))
     )
 
+    # Topology elements
+    # TODO: Current node definition may allow invalid hierarchies
+    #       like 'node1>>node2'
     node = Word(alphas, alphanums + '_' + '>')('node')
-
     port = Group(
-        node + Suppress(Literal(':')) + (identifier | inumber)('port')
+        node
+        + Suppress(Literal(':'))
+        + (identifier | inumber)('port')
     )
     link = Group(
-        port('endpoint_a') + Suppress(Literal('--')) + port('endpoint_b')
+        port('endpoint_a')
+        + Suppress(Literal('--'))
+        + port('endpoint_b')
     )
 
+    # Sections
     environment_spec = (
-        attributes + nl
-    ).set_results_name('env_spec', list_all_matches=True)
+        mapping
+        + nl
+    ).set_results_name(
+        'env_spec',
+        list_all_matches=True,
+    )
+
     nodes_spec = (
         Group(
-            Optional(attributes)('attributes')
+            Optional(mapping)('attributes')
             + Group(OneOrMore(node))('nodes')
-        ) + nl
-    ).set_results_name('node_spec', list_all_matches=True)
+        )
+        + nl
+    ).set_results_name(
+        'node_spec',
+        list_all_matches=True,
+    )
+
     ports_spec = (
         Group(
-            Optional(attributes)('attributes')
+            Optional(mapping)('attributes')
             + Group(OneOrMore(port))('ports')
-        ) + nl
-    ).set_results_name('port_spec', list_all_matches=True)
+        )
+        + nl
+    ).set_results_name(
+        'port_spec',
+        list_all_matches=True,
+    )
+
     link_spec = (
         Group(
-            Optional(attributes)('attributes') + link('links')
-        ) + nl
-    ).set_results_name('link_spec', list_all_matches=True)
+            Optional(mapping)('attributes')
+            + link('links')
+        )
+        + nl
+    ).set_results_name(
+        'link_spec',
+        list_all_matches=True,
+    )
 
     statements = OneOrMore(
         comment
-        | link_spec
-        | ports_spec
-        | nodes_spec
-        | environment_spec
         | empty_line
+        | environment_spec
+        | nodes_spec
+        | ports_spec
+        | link_spec
     )
     return statements
 
@@ -205,10 +274,11 @@ def parse_txtmeta(txtmeta):
     elements.
 
     :param str txtmeta: The textual meta-description of the topology.
-    :rtype: dict
+
     :return: Topology as dictionary.
+    :rtype: dict
     """
-    statement = build_parser()
+    parser = build_parser()
     data = {
         'environment': OrderedDict(),
         'nodes': [],
@@ -216,7 +286,7 @@ def parse_txtmeta(txtmeta):
         'links': [],
     }
 
-    parsed_result = statement.parse_string(txtmeta)
+    parsed_result = parser.parse_string(txtmeta)
 
     # Process environment line
     if 'env_spec' in parsed_result:
@@ -233,7 +303,7 @@ def parse_txtmeta(txtmeta):
         for parsed in parsed_result['link_spec']:
             link = parsed[0].links
             attrs = OrderedDict()
-            if "attributes" in parsed[0]:
+            if 'attributes' in parsed[0]:
                 for attr in parsed[0].attributes:
                     attrs[attr.key] = attr.value[0]
             data['links'].append({
@@ -263,7 +333,7 @@ def parse_txtmeta(txtmeta):
         for parsed in parsed_result['port_spec']:
             ports = parsed[0].ports
             attrs = OrderedDict()
-            if "attributes" in parsed[0]:
+            if 'attributes' in parsed[0]:
                 for attr in parsed[0].attributes:
                     attrs[attr.key] = attr.value[0]
             data['ports'].append({

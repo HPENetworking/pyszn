@@ -52,7 +52,6 @@ of a node and a port name.
 
 import logging
 from re import split
-from glob import glob
 from pathlib import Path
 from copy import deepcopy
 from textwrap import dedent
@@ -369,45 +368,95 @@ def parse_txtmeta(txtmeta):
     return data
 
 
-def find_topology_in_python(filename, szn_dir=None):
+def find_topology_in_python(filename, szn_dir=None, encoding='utf-8'):
     """
-    Find the TOPOLOGY variable inside a Python file.
+    Find the topology definition inside a Python file.
+
+    This function searches for a variable named TOPOLOGY or TOPOLOGY_ID inside
+    the given Python file. If TOPOLOGY is found, it's value is returned
+    directly. If TOPOLOGY_ID is found instead, the function searches for a file
+    named <TOPOLOGY_ID>.szn inside the given szn_dir list of paths. If found,
+    the content of that file is returned.
 
     This helper functions build a AST tree a grabs the variable from it. Thus,
     the Python code isn't executed.
 
-    :param str filename: Path to file to search for TOPOLOGY.
-    :param str szn_dir: Path to directory where topologies string are defined.
+    :param Path filename: Path to file to search for TOPOLOGY or TOPOLOGY_ID.
+    :param list szn_dir: List of paths to directories where *.szn files are
+     located.
+    :param str encoding: Encoding used to read the files.
 
     :return: The value of the TOPOLOGY variable if found, None otherwise.
     :rtype: str or None
     """
     import ast
 
-    try:
-        with open(filename) as fd:
-            tree = ast.parse(fd.read())
+    # Backward compatibility for string paths
+    if not isinstance(filename, Path):
+        filename = Path(filename)
+    if szn_dir is not None:
+        szn_dir = [
+            Path(path)
+            if not isinstance(path, Path)
+            else path
+            for path in szn_dir
+        ]
 
+    try:
+        # Parse the Python file to extract the TOPOLOGY or TOPOLOGY_ID variable
+        tree = ast.parse(filename.read_text(encoding=encoding))
+
+        # Iterate over the AST nodes to find our variable
         for node in ast.iter_child_nodes(tree):
+
+            # Check if the node is an assignment, if not, skip it
             if not isinstance(node, ast.Assign):
                 continue
-            if node.targets[0].id == 'TOPOLOGY':
-                return node.value.s
-            elif node.targets[0].id == 'TOPOLOGY_ID':
+
+            # Get the list of assignment targets
+            targets = (targets.id for targets in node.targets)
+
+            # Check if we have a TOPOLOGY variable
+            if 'TOPOLOGY' in targets:
+
+                # This used to be node.value.s in Python 3.7 and earlier
+                # But was deprecated in favor of node.value.value in
+                # Python 3.8+
+                return node.value.value
+
+            # Check if we have a TOPOLOGY_ID variable
+            elif 'TOPOLOGY_ID' in targets:
+
                 if not szn_dir:
                     raise RuntimeError(
                         'Found a TOPOLOGY_ID, but no SZN search '
                         'path was defined'
                     )
-                topology_id = node.value.s
+
+                # Grab the reference to the external file
+                topology_id = node.value.value
+
+                # Iterate over the search paths to find the referenced file
+                # Iteration is done following the explicit order of the list
+                # So the user can prioritize paths if needed
                 for search_path in szn_dir:
-                    for filename in glob(str(
-                        Path(search_path) / '{}.szn'.format(topology_id)
-                    )):
-                        return Path(filename).read_text(encoding='utf-8')
+
+                    # According to Python documentation, Path.glob is not
+                    # deterministic, so we need to sort the results to have a
+                    # predictable behavior
+                    for filename in sorted(
+                        search_path.glob(f'{topology_id}.szn'),
+                        # Length first (shortest path)
+                        # Natural sorting tie-breaker
+                        key=lambda path: (
+                            len(str(path)),
+                            naturalkey(str(path)),
+                        )
+                    ):
+                        return filename.read_text(encoding=encoding)
+
                 raise FileNotFoundError(
-                    'Topology file with ID {} '
-                    'could not be found'.format(topology_id)
+                    f'Topology file with ID {topology_id} could not be found'
                 )
 
     except Exception:

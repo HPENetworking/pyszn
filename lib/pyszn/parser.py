@@ -116,14 +116,14 @@ def build_parser():
     :rtype: pyparsing.MatchFirst
     """
     # Whitespace
-    ParserElement.setDefaultWhitespaceChars(' \t')
+    ParserElement.set_default_whitespace_chars(' \t')
     nl = Suppress(LineEnd())
     empty_line = LineStart() + LineEnd()
     comment = Literal('#') + restOfLine + nl
 
     # Scalar types
     identifier = Word(alphas, alphanums + '_')
-    inumber = Word(nums).setParseAction(
+    inumber = Word(nums).set_parse_action(
         lambda toks: int(toks[0])
     )
     fnumber = (
@@ -134,13 +134,13 @@ def build_parser():
             + Word(nums)
             + Optional('E' | 'e' + Optional('-') + Word(nums))
         )
-    ).setParseAction(
+    ).set_parse_action(
         lambda toks: float(toks[0])
     )
     boolean = (
         CaselessLiteral('true')
         | CaselessLiteral('false')
-    ).setParseAction(
+    ).set_parse_action(
         lambda toks: toks[0].casefold() == 'true'
     )
     text = QuotedString('"')
@@ -181,8 +181,8 @@ def build_parser():
         + Group(OneOrMore(element))
         + Optional(nl)
         + Suppress(')')
-    ).setParseAction(
-        lambda tok: tok.asList()
+    ).set_parse_action(
+        lambda tok: tok.as_list()
     )
 
     attribute = Group(
@@ -217,9 +217,9 @@ def build_parser():
     environment_spec = (
         mapping
         + nl
-    ).setResultsName(
+    ).set_results_name(
         'env_spec',
-        listAllMatches=True,
+        list_all_matches=True,
     )
 
     nodes_spec = (
@@ -228,9 +228,9 @@ def build_parser():
             + Group(OneOrMore(node))('nodes')
         )
         + nl
-    ).setResultsName(
+    ).set_results_name(
         'node_spec',
-        listAllMatches=True,
+        list_all_matches=True,
     )
 
     ports_spec = (
@@ -239,9 +239,9 @@ def build_parser():
             + Group(OneOrMore(port))('ports')
         )
         + nl
-    ).setResultsName(
+    ).set_results_name(
         'port_spec',
-        listAllMatches=True,
+        list_all_matches=True,
     )
 
     link_spec = (
@@ -249,9 +249,9 @@ def build_parser():
             Optional(mapping)('attributes') + link('links')
         )
         + nl
-    ).setResultsName(
+    ).set_results_name(
         'link_spec',
-        listAllMatches=True,
+        list_all_matches=True,
     )
 
     statements = OneOrMore(
@@ -271,10 +271,11 @@ def parse_txtmeta(txtmeta):
     elements.
 
     :param str txtmeta: The textual meta-description of the topology.
-    :rtype: dict
+
     :return: Topology as dictionary.
+    :rtype: dict
     """
-    statement = build_parser()
+    parser = build_parser()
     data = {
         'environment': OrderedDict(),
         'nodes': [],
@@ -282,7 +283,9 @@ def parse_txtmeta(txtmeta):
         'links': [],
     }
 
-    parsed_result = statement.parseString(txtmeta)
+    parsed_result = parser.parse_string(txtmeta)
+    from pprintpp import pprint
+    pprint(parsed_result.as_list())
 
     # Process environment line
     if 'env_spec' in parsed_result:
@@ -299,7 +302,7 @@ def parse_txtmeta(txtmeta):
         for parsed in parsed_result['link_spec']:
             link = parsed[0].links
             attrs = OrderedDict()
-            if "attributes" in parsed[0]:
+            if 'attributes' in parsed[0]:
                 for attr in parsed[0].attributes:
                     attrs[attr.key] = attr.value[0]
             data['links'].append({
@@ -329,7 +332,7 @@ def parse_txtmeta(txtmeta):
         for parsed in parsed_result['port_spec']:
             ports = parsed[0].ports
             attrs = OrderedDict()
-            if "attributes" in parsed[0]:
+            if 'attributes' in parsed[0]:
                 for attr in parsed[0].attributes:
                     attrs[attr.key] = attr.value[0]
             data['ports'].append({

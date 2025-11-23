@@ -139,15 +139,22 @@ def build_parser():
     ).set_parse_action(
         lambda toks: float(toks[0])
     )
-    inumber = Word(nums).set_parse_action(
+    inumber = Word(
+        nums
+    ).set_parse_action(
         lambda toks: int(toks[0])
     )
-    identifier = Word(alphas, alphanums + '_')
+    identifier = Word(
+        alphas,
+        alphanums + '_'
+    ).set_parse_action(
+        lambda toks: toks[0]
+    )
     text = QuotedString('"')
     text_multiline = QuotedString(
         '```',
         multiline=True,
-    ).addParseAction(
+    ).add_parse_action(
         lambda toks: dedent(toks[0])
     )
 
@@ -187,17 +194,22 @@ def build_parser():
         lambda tok: tok.as_list()
     )
 
-    attribute = Group(
+    attribute = (
         identifier('key')
         + Suppress(Literal('='))
         + datatype('value')
         + Optional(nl)
+    ).set_parse_action(
+        lambda toks: (toks['key'], toks['value'][0])
     )
+
     mapping <<= (
         Suppress(Literal('['))
         + Optional(nl)
         + OneOrMore(attribute)
         + Suppress(Literal(']'))
+    ).set_parse_action(
+        lambda toks: OrderedDict(toks.as_list())
     )
 
     # Topology elements
@@ -219,6 +231,8 @@ def build_parser():
     environment_spec = (
         mapping
         + nl
+    ).set_parse_action(
+        lambda toks: toks[0]
     ).set_results_name(
         'env_spec',
         list_all_matches=True,
@@ -230,6 +244,8 @@ def build_parser():
             + Group(OneOrMore(node))('nodes')
         )
         + nl
+    ).set_parse_action(
+        lambda toks: toks[0]
     ).set_results_name(
         'node_spec',
         list_all_matches=True,
@@ -241,6 +257,8 @@ def build_parser():
             + Group(OneOrMore(port))('ports')
         )
         + nl
+    ).set_parse_action(
+        lambda toks: toks[0]
     ).set_results_name(
         'port_spec',
         list_all_matches=True,
@@ -252,6 +270,8 @@ def build_parser():
             + link('links')
         )
         + nl
+    ).set_parse_action(
+        lambda toks: toks[0]
     ).set_results_name(
         'link_spec',
         list_all_matches=True,
@@ -290,19 +310,30 @@ def parse_txtmeta(txtmeta):
     from pprintpp import pprint
     pprint(parsed_result.as_list())
 
-    # Process environment line
-    if 'env_spec' in parsed_result:
-        if len(parsed_result['env_spec']) > 1:
-            raise Exception(
-                'Multiple declaration of environment attributes: '
-                '{}'.format(parsed_result['env_spec'][1])
-            )
-        for attr in parsed_result['env_spec'][0]:
-            data['environment'][attr.key] = attr.value[0]
+    # Process environment line(s)
+    env_spec = parsed_result.get('env_spec', None)
+    if env_spec is not None:
+
+        # Lets allow many environment definitions, but no duplicate keys
+        for env_idx, env_def in enumerate(env_spec, start=1):
+            for key, value in env_def.items():
+                if key in data['environment']:
+                    raise RuntimeError(
+                        f'Redefinition of environment attribute {key!r} '
+                        f'in environment specification #{env_idx}'
+                    )
+                data['environment'][key] = value
+
+    print('ENV SPEC:')
+    pprint(data['environment'])
 
     # Process the links
-    if 'link_spec' in parsed_result:
-        for parsed in parsed_result['link_spec']:
+    link_spec = parsed_result.get('link_spec', None)
+    if link_spec is not None:
+        print('LINK SPEC:')
+        pprint(link_spec)
+
+        for parsed in link_spec:
             link = parsed[0].links
             attrs = OrderedDict()
             if 'attributes' in parsed[0]:

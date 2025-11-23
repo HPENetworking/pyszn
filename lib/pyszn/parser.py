@@ -122,9 +122,11 @@ def build_parser():
     comment = Literal('#') + restOfLine + nl
 
     # Scalar types
-    identifier = Word(alphas, alphanums + '_')
-    inumber = Word(nums).set_parse_action(
-        lambda toks: int(toks[0])
+    boolean = (
+        CaselessLiteral('true')
+        | CaselessLiteral('false')
+    ).set_parse_action(
+        lambda toks: toks[0].casefold() == 'true'
     )
     fnumber = (
         Combine(
@@ -137,12 +139,10 @@ def build_parser():
     ).set_parse_action(
         lambda toks: float(toks[0])
     )
-    boolean = (
-        CaselessLiteral('true')
-        | CaselessLiteral('false')
-    ).set_parse_action(
-        lambda toks: toks[0].casefold() == 'true'
+    inumber = Word(nums).set_parse_action(
+        lambda toks: int(toks[0])
     )
+    identifier = Word(alphas, alphanums + '_')
     text = QuotedString('"')
     text_multiline = QuotedString(
         '```',
@@ -152,10 +152,12 @@ def build_parser():
     )
 
     scalar = (
-        identifier
-        | inumber
+        # Please note that the ordering here is important as it defines the
+        # precedence of parsing attempts
+        boolean
         | fnumber
-        | boolean
+        | inumber
+        | identifier
         | text
         | text_multiline
     )
@@ -246,7 +248,8 @@ def build_parser():
 
     link_spec = (
         Group(
-            Optional(mapping)('attributes') + link('links')
+            Optional(mapping)('attributes')
+            + link('links')
         )
         + nl
     ).set_results_name(

@@ -244,8 +244,6 @@ def build_parser():
             + Group(OneOrMore(node))('nodes')
         )
         + nl
-    ).set_parse_action(
-        lambda toks: toks[0]
     ).set_results_name(
         'node_spec',
         list_all_matches=True,
@@ -257,8 +255,6 @@ def build_parser():
             + Group(OneOrMore(port))('ports')
         )
         + nl
-    ).set_parse_action(
-        lambda toks: toks[0]
     ).set_results_name(
         'port_spec',
         list_all_matches=True,
@@ -270,8 +266,6 @@ def build_parser():
             + link('links')
         )
         + nl
-    ).set_parse_action(
-        lambda toks: toks[0]
     ).set_results_name(
         'link_spec',
         list_all_matches=True,
@@ -307,8 +301,6 @@ def parse_txtmeta(txtmeta):
     }
 
     parsed_result = parser.parse_string(txtmeta)
-    from pprintpp import pprint
-    pprint(parsed_result.as_list())
 
     # Process environment line(s)
     env_spec = parsed_result.get('env_spec', None)
@@ -324,21 +316,14 @@ def parse_txtmeta(txtmeta):
                     )
                 data['environment'][key] = value
 
-    print('ENV SPEC:')
-    pprint(data['environment'])
-
     # Process the links
     link_spec = parsed_result.get('link_spec', None)
     if link_spec is not None:
-        print('LINK SPEC:')
-        pprint(link_spec)
-
         for parsed in link_spec:
             link = parsed[0].links
             attrs = OrderedDict()
             if 'attributes' in parsed[0]:
-                for attr in parsed[0].attributes:
-                    attrs[attr.key] = attr.value[0]
+                attrs = parsed[0].attributes[0]
             data['links'].append({
                 'endpoints': (
                     (str(link.endpoint_a.node), str(link.endpoint_a.port)),
@@ -367,8 +352,7 @@ def parse_txtmeta(txtmeta):
             ports = parsed[0].ports
             attrs = OrderedDict()
             if 'attributes' in parsed[0]:
-                for attr in parsed[0].attributes:
-                    attrs[attr.key] = attr.value[0]
+                attrs = parsed[0].attributes[0]
             data['ports'].append({
                 'ports': [
                     (str(port.node), str(port.port)) for port in ports
@@ -386,8 +370,7 @@ def parse_txtmeta(txtmeta):
             nodes = parsed[0].nodes
             attrs = OrderedDict()
             if 'attributes' in parsed[0]:
-                for attr in parsed[0].attributes:
-                    attrs[attr.key] = attr.value[0]
+                attrs = parsed[0].attributes[0]
             data['nodes'].append({
                 'nodes': [str(node) for node in nodes],
                 'attributes': attrs,

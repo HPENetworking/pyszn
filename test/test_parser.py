@@ -134,12 +134,6 @@ def test_basic_parse():
         ]
     }
 
-    from pprintpp import pprint
-    print('=' * 100)
-    pprint(actual)
-    print('>' * 100)
-    pprint(expected)
-    print('=' * 100)
     assert not DeepDiff(actual, expected)
 
 

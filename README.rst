@@ -15,6 +15,40 @@ Changelog
 =========
 
 
+1.8.0 (2026-03-11)
+------------------
+
+New
+~~~
+
+- Adds GitHub Actions workflow to run tests on pull request.
+  [Carlos Jenkins]
+
+Changes
+~~~~~~~
+
+- Updates project to use uv, pyproject.toml and removes setup.py.
+  [Carlos Jenkins]
+- Updated the find_topology_in_python to use modern Python, be deterministic
+  and fixed documentation. [Carlos Jenkins]
+
+Fix
+~~~
+
+- Fixes pyparsing deprecation warnings. [Carlos Jenkins]
+- Fixes documentation build. [Carlos Jenkins]
+
+1.7.1 (2025-07-03)
+------------------
+
+Fix
+~~~
+
+- Fix an issue where the attribute injection parser aborted processing a
+  injection rule when it finds a non-topology file in the expanded rule files.
+  Now it continues processing the same rule with the next file.
+  [Sergio Salazar]
+
 1.7.0 (2024-10-04)
 ------------------
 
@@ -30,8 +64,8 @@ New
 ~~~
 
 - Add the capability to specify subnodes by using ´node>subnode´ syntax.
-
-- Add the capability to specify a multiline text as value of an 
+  [Sergio Salazar]
+- Add the capability to specify a multiline text as value of an
   attribute by using \`\`\` [Sergio Salazar]
 
 1.5.0 (2021-11-04)

@@ -85,7 +85,7 @@ def parse_attribute_injection(
      If ``None`` (the default), the current working directory is used.
     :param list ignored_paths: Lists of path pattern to ignore of the search
      paths. Uses fnmatch to filter them out.
-    :param list szn_dir: List of paths to directories where *.szn files
+    :param list szn_dir: List of paths to directories where \\*.szn files
      are located.
     :return: An ordered dictionary with the attributes to inject of the form:
 

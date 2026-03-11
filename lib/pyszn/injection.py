@@ -1,6 +1,4 @@
-# -*- coding: utf-8 -*-
-#
-# Copyright (C) 2015-2021 Hewlett Packard Enterprise Development LP
+# Copyright (C) 2015-2025 Hewlett Packard Enterprise Development LP
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -33,14 +31,17 @@ from traceback import format_exc
 from collections import OrderedDict
 from os.path import isabs, join, abspath, isfile, basename
 
-
 from pyszn.parser import parse_txtmeta, find_topology_in_python
+
 
 log = getLogger(__name__)
 
 
 def parse_attribute_injection(
-    injection_file, search_paths=None, ignored_paths=None, szn_dir=None
+    injection_file,
+    search_paths=None,
+    ignored_paths=None,
+    szn_dir=None,
 ):
     """
     Parses a attributes injection file into an attribute injection dictionary.
@@ -366,6 +367,7 @@ def _expand_nodes(parsed_topology, nodes_definitions):
 
     :param dict parsed_topology: A dictionary of a fully parsed topology.
     :param list nodes_definitions: A list of node definitions.
+
     :return: A list of matching nodes.
     """
 
@@ -390,18 +392,18 @@ def _expand_nodes(parsed_topology, nodes_definitions):
 
 
 def _match_by_attr(regex, parsed_topology, kind):
-    ''' Searches a parsed topology for attributes that matcha regex.
+    """
+    Searches a parsed topology for attributes that match a regex.
 
-
-    :param str regex: The regex to match the attribute, must of
-                      the form (attribute_regex)=(value_regex).
-    :param topology parsed_topology: A topology already parsed to search
-                                   for matches.
+    :param str regex: The regex to match the attribute, must of the form
+     (attribute_regex)=(value_regex).
+    :param topology parsed_topology: A topology already parsed to search for
+     matches.
     :param str kind: The kind of object that posses the attribute to search for
-                     can be either 'nodes', 'ports' or 'links'.
-    :return: A list of matching nodes,ports or links containing the attribute.
+     can be either 'nodes', 'ports' or 'links'.
 
-'''
+    :return: A list of matching nodes,ports or links containing the attribute.
+    """
 
     matched_objects = []
     regex_attribute, regex_value = regex.split('=')
@@ -437,6 +439,7 @@ def _expand_ports(parsed_topology, ports_definitions):
 
     :param dict parsed_topology: A dictionary of a fully parsed topology.
     :param list ports_definitions: A list of port definitions.
+
     :return: A list of matching ports.
     """
 

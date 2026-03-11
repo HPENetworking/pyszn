@@ -382,7 +382,7 @@ def find_topology_in_python(filename, szn_dir=None, encoding='utf-8'):
     the Python code isn't executed.
 
     :param Path filename: Path to file to search for TOPOLOGY or TOPOLOGY_ID.
-    :param list szn_dir: List of paths to directories where *.szn files are
+    :param list szn_dir: List of paths to directories where \\*.szn files are
      located.
     :param str encoding: Encoding used to read the files.
 

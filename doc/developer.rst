@@ -10,20 +10,15 @@ Developer Guide
 Setup Development Environment
 =============================
 
-#. Install ``pip3`` and ``tox``:
+#. Install ``uv``:
+
+   Check https://docs.astral.sh/uv/ for your platform.
+
+#. Install ``tox`` with the ``tox-uv`` plugin:
 
    ::
 
-      sudo apt-get install python3-pip
-      sudo pip3 install tox
-
-#. Configure git pre-commit hook:
-
-   ::
-
-      sudo pip3 install flake8 pep8-naming
-      flake8 --install-hook
-      git config flake8.strict true
+      uv tool install tox --with tox-uv
 
 
 Building Documentation

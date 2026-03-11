@@ -115,23 +115,23 @@ def build_parser():
     :return: A pyparsing parser.
     :rtype: pyparsing.MatchFirst
     """
-    ParserElement.setDefaultWhitespaceChars(' \t')
+    ParserElement.set_default_whitespace_chars(' \t')
     nl = Suppress(LineEnd())
-    inumber = Word(nums).setParseAction(lambda toks: int(toks[0]))
+    inumber = Word(nums).set_parse_action(lambda toks: int(toks[0]))
     fnumber = (
         Combine(
             Optional('-') + Word(nums) + '.' + Word(nums)
             + Optional('E' | 'e' + Optional('-') + Word(nums))
         )
-    ).setParseAction(lambda toks: float(toks[0]))
+    ).set_parse_action(lambda toks: float(toks[0]))
     boolean = (
         CaselessLiteral('true') | CaselessLiteral('false')
-    ).setParseAction(lambda s, loc, toks: toks[0].casefold() == 'true')
+    ).set_parse_action(lambda s, loc, toks: toks[0].casefold() == 'true')
     comment = Literal('#') + restOfLine + nl
     text = QuotedString('"')
 
     multiline_text = QuotedString('```', multiline=True)
-    multiline_text.addParseAction(lambda t: dedent(t[0]))
+    multiline_text.add_parse_action(lambda t: dedent(t[0]))
 
     identifier = Word(alphas, alphanums + '_')
     empty_line = LineStart() + LineEnd()
@@ -142,7 +142,7 @@ def build_parser():
     custom_list = (
         Suppress('(') + Optional(nl) + Group(OneOrMore(item_list))
         + Optional(nl) + Suppress(')')
-    ).setParseAction(lambda tok: tok.asList())
+    ).set_parse_action(lambda tok: tok.as_list())
     attribute = Group(
         identifier('key') + Suppress(Literal('='))
         + (
@@ -169,24 +169,24 @@ def build_parser():
 
     environment_spec = (
         attributes + nl
-    ).setResultsName('env_spec', listAllMatches=True)
+    ).set_results_name('env_spec', list_all_matches=True)
     nodes_spec = (
         Group(
             Optional(attributes)('attributes')
             + Group(OneOrMore(node))('nodes')
         ) + nl
-    ).setResultsName('node_spec', listAllMatches=True)
+    ).set_results_name('node_spec', list_all_matches=True)
     ports_spec = (
         Group(
             Optional(attributes)('attributes')
             + Group(OneOrMore(port))('ports')
         ) + nl
-    ).setResultsName('port_spec', listAllMatches=True)
+    ).set_results_name('port_spec', list_all_matches=True)
     link_spec = (
         Group(
             Optional(attributes)('attributes') + link('links')
         ) + nl
-    ).setResultsName('link_spec', listAllMatches=True)
+    ).set_results_name('link_spec', list_all_matches=True)
 
     statements = OneOrMore(
         comment
@@ -216,7 +216,7 @@ def parse_txtmeta(txtmeta):
         'links': [],
     }
 
-    parsed_result = statement.parseString(txtmeta)
+    parsed_result = statement.parse_string(txtmeta)
 
     # Process environment line
     if 'env_spec' in parsed_result:

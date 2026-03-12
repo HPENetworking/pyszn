@@ -414,7 +414,7 @@ def find_topology_in_python(filename, szn_dir=None, encoding='utf-8'):
                 continue
 
             # Get the list of assignment targets
-            targets = (targets.id for targets in node.targets)
+            targets = {targets.id for targets in node.targets}
 
             # Check if we have a TOPOLOGY variable
             if 'TOPOLOGY' in targets:

@@ -15,6 +15,23 @@ Changelog
 =========
 
 
+1.8.1 (2026-03-12)
+------------------
+
+New
+~~~
+
+- Adds a test for find_topology_in_python, specifically for the TOPOLOGY_ID
+  feature. [Carlos Jenkins]
+
+Fix
+~~~
+
+- Fixes find_topology_in_python, a generator was being consumed in the first
+  comparison and then it was empty in the second one, now a comprehension is
+  used instead.
+  [Carlos Jenkins]
+
 1.8.0 (2026-03-11)
 ------------------
 
